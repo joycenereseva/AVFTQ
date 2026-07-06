@@ -15,10 +15,11 @@ Aplicação HTML offline para fichas de avaliação técnica de natação partic
 - **Offline**: bibliotecas locais em `vendor/` com fallback para CDN
 - **Versão standalone**: um único arquivo HTML sem dependências externas
 - **Indicador de carregamento** enquanto o PDF é gerado
-- **Maior nitidez**: escala 2.5x e compressão JPEG otimizada
-- **Imagens**: aguarda o banner carregar antes de capturar
-- **Segurança**: textos do aluno escapados para evitar quebra de layout
-- **Mensagens de erro** claras em português
+- **Botão Visualizar** — abre a avaliação em nova aba, legível sem zoom (com opção de imprimir/salvar PDF)
+- **Prova opcional** — quando marcada como "não incluso", tabela e gráfico não aparecem
+- **Fontes maiores** — texto legível sem precisar dar zoom
+- **Nomenclatura única** no topo (não repetida em cada seção)
+- **Páginas divididas** — habilidades em até 3 seções por página
 
 ## Como usar no Google Drive
 
