@@ -2052,9 +2052,9 @@ async function generatePDF(opts = {}) {
         </div>
       </div>`
     : `<div style="width:794px;">
-        <div style="position:relative;width:794px;line-height:0;">
+        <div style="position:relative;width:794px;height:130px;line-height:0;overflow:hidden;">
           ${bannerImg}
-          <div style="position:absolute;top:0;left:0;width:62%;height:72px;display:flex;flex-direction:column;justify-content:center;padding:6px 20px 6px 44px;line-height:1.2;">
+          <div style="position:absolute;top:0;left:0;width:64%;height:130px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:12px 20px 12px 44px;line-height:1.2;">
             ${coverTextInner}
           </div>
         </div>
