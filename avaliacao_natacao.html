@@ -701,6 +701,7 @@
     </div>
     <button class="btn btn-secondary" id="btn-visualizar-av" onclick="visualizarAvaliacao()">👁 Visualizar</button>
     <button class="btn btn-secondary" id="btn-generate-pdf" onclick="generatePDF()">📄 Gerar PDF</button>
+    <button class="btn btn-primary" id="btn-share-link" onclick="publicarLinkPais()">🔗 Link para pais</button>
   </div>
 
   <!-- HEADER INFO -->
@@ -849,6 +850,16 @@
     <button class="btn btn-primary" onclick="saveConfig()">💾 Salvar configurações</button>
 
     <div style="margin-top:24px;padding-top:20px;border-top:1.5px solid var(--gray-border);">
+      <div class="form-label" style="margin-bottom:8px;">🔗 Link para os pais (Firebase)</div>
+      <p style="font-size:13px;color:var(--gray-text);margin-bottom:10px;">Configure uma vez após publicar o site no Firebase. Veja instruções no README.</p>
+      <div class="form-group">
+        <label class="form-label">URL da página para pais</label>
+        <input type="url" class="form-control" id="cfg-view-base" placeholder="https://seu-projeto.web.app/v.html">
+      </div>
+      <div id="firebase-config-status" style="font-size:13px;color:var(--gray-text);"></div>
+    </div>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1.5px solid var(--gray-border);">
       <div class="form-label" style="margin-bottom:8px;">Salvamento automático no arquivo</div>
       <p style="font-size:13px;color:var(--gray-text);margin-bottom:10px;">Ative para salvar os dados diretamente no arquivo HTML. Funciona mesmo que mova o arquivo de pasta.</p>
       <button class="btn btn-primary" id="btn-file-access" onclick="requestFileAccess()" style="margin-bottom:8px;">📂 Selecionar este arquivo para salvar</button>
@@ -909,6 +920,25 @@
   </div>
 </div>
 
+<!-- MODAL: SHARE LINK -->
+<div class="modal-backdrop" id="modal-share-link">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">Link para os pais</div>
+      <button class="btn-icon" onclick="closeModal('modal-share-link')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--gray-text);margin-bottom:12px;">Envie este link no WhatsApp. Os pais abrem no celular e rolam a avaliação com leitura confortável.</p>
+      <div id="share-link-status" style="font-size:13px;margin-bottom:10px;color:var(--teal-dark);"></div>
+      <input type="text" class="form-control" id="share-link-url" readonly style="font-size:13px;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="copyShareLink()">📋 Copiar link</button>
+        <button class="btn btn-secondary" onclick="openShareLink()">Abrir preview</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ALERT DIALOG -->
 <div class="alert-dialog" id="alert-dialog">
   <div class="alert-box">
@@ -933,6 +963,7 @@
 </div>
 <div id="pdf-render"></div>
 <script id="nt-saved-data" type="application/json">{}</script>
+<script src="firebase-config.js" onerror="console.log('firebase-config.js não encontrado — configure em Configurações ou crie o arquivo.')"></script>
 
 <script>
 
@@ -1036,6 +1067,7 @@ function showPage(page) {
   } else if (page === 'config') {
     document.getElementById('tab-config').classList.add('active');
     loadConfig();
+    updateFirebaseStatus();
   }
   window.scrollTo(0, 0);
 }
@@ -1332,12 +1364,16 @@ function renderHistory() {
       <div>
         <div class="hi-num">Avaliação ${i + 1}</div>
         <div class="hi-date">${e.mes || ''} · ${e.data || '—'}</div>
+        ${e.shareToken ? '<div style="font-size:11px;color:var(--teal);margin-top:2px;">🔗 Link publicado</div>' : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
         <div style="text-align:right">
           <div class="hi-score">${e.probeTotal || '—'}</div>
           <div style="font-size:11px;color:var(--gray-text);">média total</div>
         </div>
+        <button class="btn-icon" title="Link para pais"
+          onclick="event.stopPropagation(); publicarLinkPais('${e.id}')"
+          style="flex-shrink:0;">🔗</button>
         <button class="btn-icon danger" title="Excluir avaliação"
           onclick="event.stopPropagation(); confirmDeleteEval('${e.id}', ${i + 1})"
           style="flex-shrink:0;">🗑️</button>
@@ -1652,6 +1688,9 @@ function saveEval() {
     meta: document.getElementById('eval-meta').value,
     consideracoes: document.getElementById('eval-consideracoes').value,
   };
+  const existing = editingEvalId ? evals.find(e => e.id === editingEvalId) : null;
+  if (existing && existing.shareToken) ev.shareToken = existing.shareToken;
+  if (existing && existing.publisherUid) ev.publisherUid = existing.publisherUid;
   if (editingEvalId) {
     const idx = evals.findIndex(e => e.id === editingEvalId);
     if (idx >= 0) evals[idx] = ev; else evals.push(ev);
@@ -1673,8 +1712,20 @@ function loadConfig() {
   document.getElementById('cfg-tel').value = cfg.tel || '(73) 9 9104-0064';
   document.getElementById('cfg-cref').value = cfg.cref || '02260 - G';
   document.getElementById('cfg-email').value = cfg.email || 'joyceneresemp@gmail.com';
+  document.getElementById('cfg-view-base').value = cfg.viewBase || window.AVF_VIEW_BASE || '';
   if (cfg.logo) {
     document.getElementById('logo-preview').innerHTML = `<img src="${cfg.logo}" style="height:48px;border-radius:8px;border:1px solid var(--gray-border);">`;
+  }
+}
+
+function updateFirebaseStatus() {
+  const el = document.getElementById('firebase-config-status');
+  if (!el) return;
+  const fb = getFirebaseConfig();
+  if (fb && fb.projectId && fb.projectId !== 'SEU_PROJECT_ID') {
+    el.innerHTML = `<span style="color:#0A7A3A">✓ Firebase configurado (${fb.projectId})</span>`;
+  } else {
+    el.textContent = 'Firebase não configurado — copie firebase-config.example.js para firebase-config.js';
   }
 }
 
@@ -1696,6 +1747,8 @@ function saveConfig() {
     cref: document.getElementById('cfg-cref').value,
     email: document.getElementById('cfg-email').value,
     logo: tempLogoData || DB.config().logo || null,
+    viewBase: document.getElementById('cfg-view-base').value.trim() || null,
+    firebase: getFirebaseConfig() || DB.config().firebase || null,
   };
   DB.saveConfig(cfg);
   alert('Configurações salvas!');
@@ -2186,6 +2239,175 @@ async function generatePDF(opts = {}) {
     alert('Não foi possível gerar o PDF.\n\n' + (err.message || err));
   } finally {
     if (!opts.preview) _pdfShowLoading(false);
+  }
+}
+
+// ========================
+// FIREBASE — LINK PARA PAIS
+// ========================
+let _firebaseReady = null;
+let _lastShareUrl = '';
+
+function getFirebaseConfig() {
+  const cfg = DB.config();
+  if (cfg.firebase && cfg.firebase.projectId) return cfg.firebase;
+  if (window.AVF_FIREBASE && window.AVF_FIREBASE.projectId) return window.AVF_FIREBASE;
+  return null;
+}
+
+function getViewBaseUrl() {
+  const cfg = DB.config();
+  return (cfg.viewBase || window.AVF_VIEW_BASE || '').replace(/\?.*$/, '').replace(/\/$/, '');
+}
+
+function loadFirebaseScripts() {
+  if (window.firebase && window.firebase.firestore) return Promise.resolve();
+  if (_firebaseReady) return _firebaseReady;
+  const urls = [
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
+  ];
+  _firebaseReady = Promise.all(urls.map(src => new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Não foi possível carregar Firebase. Verifique sua internet.'));
+    document.head.appendChild(s);
+  }))).then(() => {
+    const fbCfg = getFirebaseConfig();
+    if (!fbCfg || !fbCfg.projectId || fbCfg.projectId === 'SEU_PROJECT_ID') {
+      throw new Error('Configure o Firebase em firebase-config.js (veja pasta firebase/ no repositório).');
+    }
+    if (!firebase.apps.length) firebase.initializeApp(fbCfg);
+    return firebase;
+  });
+  return _firebaseReady;
+}
+
+function buildSharePayload(student, ev, cfg) {
+  const allEvals = DB.evals().filter(e => e.studentId === student.id);
+  const avDates = allEvals.map(e => e.data || '—');
+  while (avDates.length < 4) avDates.push('—');
+  return {
+    publishedAt: new Date().toISOString(),
+    config: {
+      nome: cfg.nome || 'Prof.ª Joyce Neres',
+      tel: cfg.tel || '',
+      cref: cfg.cref || '',
+      email: cfg.email || '',
+      logo: cfg.logo || null,
+    },
+    student: {
+      nome: student.nome,
+      nasc: student.nasc,
+      turma: student.turma || '',
+      modelo: student.modelo || 'avancado',
+      foto: student.foto || null,
+    },
+    eval: {
+      id: ev.id,
+      mes: ev.mes,
+      data: ev.data,
+      skills: ev.skills || {},
+      probeNaoIncluso: !!ev.probeNaoIncluso,
+      probeRows: ev.probeRows || [],
+      probeTotal: ev.probeTotal || '',
+      gallahue: ev.gallahue || '',
+      morgana: ev.morgana || '',
+      desenvolturas: ev.desenvolturas || [],
+      dificuldades: ev.dificuldades || [],
+      meta: ev.meta || '',
+      consideracoes: ev.consideracoes || '',
+    },
+    avDates: avDates.slice(0, 4),
+  };
+}
+
+function showShareModal(url, message) {
+  _lastShareUrl = url;
+  document.getElementById('share-link-url').value = url;
+  document.getElementById('share-link-status').textContent = message || 'Link pronto para enviar aos pais.';
+  openModal('modal-share-link');
+}
+
+function copyShareLink() {
+  const input = document.getElementById('share-link-url');
+  input.select();
+  input.setSelectionRange(0, 99999);
+  const url = input.value || _lastShareUrl;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      document.getElementById('share-link-status').textContent = '✓ Link copiado!';
+    }).catch(() => {
+      document.execCommand('copy');
+      document.getElementById('share-link-status').textContent = '✓ Link copiado!';
+    });
+  } else {
+    document.execCommand('copy');
+    document.getElementById('share-link-status').textContent = '✓ Link copiado!';
+  }
+}
+
+function openShareLink() {
+  const url = document.getElementById('share-link-url').value || _lastShareUrl;
+  if (url) window.open(url, '_blank');
+}
+
+async function publicarLinkPais(evalId) {
+  if (!currentStudent) {
+    alert('Selecione um aluno primeiro.');
+    return;
+  }
+  const id = evalId || editingEvalId;
+  if (!id) {
+    alert('Salve a avaliação antes de gerar o link para os pais.');
+    return;
+  }
+  const ev = DB.evals().find(e => e.id === id);
+  if (!ev) {
+    alert('Avaliação não encontrada.');
+    return;
+  }
+  const viewBase = getViewBaseUrl();
+  if (!viewBase) {
+    alert('Configure a URL da página para pais em Configurações → Link para os pais (Firebase).\n\nExemplo: https://seu-projeto.web.app/v.html');
+    showPage('config');
+    return;
+  }
+
+  const btn = document.getElementById('btn-share-link');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
+
+  try {
+    await loadFirebaseScripts();
+    const user = firebase.auth().currentUser || (await firebase.auth().signInAnonymously()).user;
+    const token = ev.shareToken || crypto.randomUUID();
+    const payload = buildSharePayload(currentStudent, ev, DB.config());
+    payload.publisherUid = user.uid;
+    payload.evalId = ev.id;
+    payload.studentId = currentStudent.id;
+
+    await firebase.firestore().collection('avaliacoes').doc(token).set(payload, { merge: true });
+
+    const evals = DB.evals();
+    const idx = evals.findIndex(e => e.id === id);
+    if (idx >= 0) {
+      evals[idx].shareToken = token;
+      evals[idx].publisherUid = user.uid;
+      evals[idx].sharePublishedAt = new Date().toISOString();
+      DB.saveEvals(evals);
+    }
+
+    const url = `${viewBase}?t=${token}`;
+    showShareModal(url, ev.shareToken ? 'Link atualizado com os dados mais recentes.' : 'Link publicado com sucesso!');
+    renderHistory();
+  } catch (err) {
+    console.error(err);
+    alert('Não foi possível publicar o link.\n\n' + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔗 Link para pais'; }
   }
 }
 
