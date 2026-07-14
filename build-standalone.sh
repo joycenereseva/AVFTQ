@@ -13,6 +13,8 @@ with open("vendor/jspdf.umd.min.js", encoding="utf-8") as f:
     jspdf = f.read()
 with open("vendor/html2canvas.min.js", encoding="utf-8") as f:
     h2c = f.read()
+with open("parent-page.js", encoding="utf-8") as f:
+    parent_page = f.read()
 
 start_marker = '<script src="vendor/jspdf.umd.min.js"></script>'
 end_marker = '})();\n</script>'
@@ -31,6 +33,14 @@ inline = (
 )
 
 html = html[:start] + inline + html[end:]
+
+pp_marker = '<script src="parent-page.js"></script>'
+if pp_marker in html:
+    html = html.replace(
+        pp_marker,
+        '<script>\n/* parent-page.js */\n' + parent_page + '\n</script>',
+        1,
+    )
 
 with open(out_path, "w", encoding="utf-8") as f:
     f.write(html)
