@@ -1003,7 +1003,7 @@ async function _saveToFile() {
     const file = await _fileHandle.getFile();
     let content = await file.text();
     // Replace the data tag content (avoid script-close sequence in source — breaks preview hosts)
-    const dataTagOpen = '<script id="nt-saved-data" type="application/json">';
+    const dataTagOpen = '<scr' + 'ipt id="nt-saved-data" type="application/json">';
     const dataTagClose = '<' + '/script>';
     const tagStart = content.indexOf(dataTagOpen);
     if (tagStart !== -1) {
