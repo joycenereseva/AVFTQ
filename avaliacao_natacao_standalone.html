@@ -2589,17 +2589,9 @@ async function generatePDF(opts = {}) {
   ];
   const nomInf = nomCond;
 
-  const nomLegend = (arr, title) => `
-    <div style="margin-bottom:6px;background:white;border:1px solid ${BD};border-radius:3px;overflow:hidden;">
-      <div style="background:${TL};padding:4px 8px;border-bottom:1px solid ${BD};">
-        <span style="font-size:8pt;font-weight:700;color:${T};text-transform:uppercase;letter-spacing:0.3px;">${title}</span>
-      </div>
-      <div style="padding:5px 8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 10px;">
-        ${arr.map(([k,v])=>`<div style="font-size:8pt;line-height:1.45;"><strong style="color:${T};">${k}</strong> <span style="color:#444;">${escPdf(v)}</span></div>`).join('')}
-      </div>
-    </div>`;
-
   const renderSec = (sec) => {
+    const isCond = sec.title.includes('Condicionamento');
+    const nomArr = isCond ? nomCond : (isInf ? nomInf : nomAvd);
     const allNTNAV = sec.fields.every(f => (skills[sec.title+'::'+f]||'') === 'NTNAV');
     const half = Math.ceil(sec.fields.length / 2);
     const col1 = sec.fields.slice(0, half);
@@ -2613,18 +2605,30 @@ async function generatePDF(opts = {}) {
       ? `<div style="font-size:10pt;font-weight:700;color:#C0392B;padding:6px 0;text-align:center;">NÃO INCLUSO NESTA AVALIAÇÃO</div>`
       : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;"><div>${col1.map(cell).join('')}</div><div>${col2.map(cell).join('')}</div></div>`;
 
+    const nomHalf = Math.ceil(nomArr.length / 2);
+    const nomCol1 = nomArr.slice(0, nomHalf);
+    const nomCol2 = nomArr.slice(nomHalf);
+    const nomCell = `<td style="width:175px;padding:4px 6px;vertical-align:top;background:${TL};border-left:1px solid ${BD};">
+      <div style="font-size:7pt;font-weight:700;color:${T};text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;padding-bottom:2px;border-bottom:1px solid ${BD};">Nomenclatura</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 4px;">
+        <div>${nomCol1.map(([k,v])=>`<div style="font-size:7pt;line-height:1.45;"><strong style="color:${T};">${k}</strong> <span style="color:#444;">${escPdf(v)}</span></div>`).join('')}</div>
+        <div>${nomCol2.map(([k,v])=>`<div style="font-size:7pt;line-height:1.45;"><strong style="color:${T};">${k}</strong> <span style="color:#444;">${escPdf(v)}</span></div>`).join('')}</div>
+      </div>
+    </td>`;
+
     return `
     <div style="margin-bottom:4px;border:1px solid ${BD};border-radius:3px;overflow:hidden;">
       <div style="background:${T};padding:4px 8px;text-align:center;">
         <span style="color:white;font-size:10pt;font-weight:700;letter-spacing:0.3px;">${escPdf(sec.title).toUpperCase()}</span>
       </div>
-      <div style="padding:6px 10px;background:white;">${fieldsHtml}</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 10px;vertical-align:top;background:white;">${fieldsHtml}</td>
+          ${nomCell}
+        </tr>
+      </table>
     </div>`;
   };
-
-  const nomPage1 = isInf
-    ? nomLegend(nomInf, 'Nomenclatura — Habilidades e Condicionamento')
-    : nomLegend(nomAvd, 'Nomenclatura — Habilidades') + nomLegend(nomCond, 'Nomenclatura — Condicionamento');
 
   // Chart (só quando prova inclusa)
   const chartRows = probeNaoIncluso ? [] : probeRows.filter(r => r.habilidade && r.pontuacao !== '');
@@ -2768,7 +2772,6 @@ async function generatePDF(opts = {}) {
 
   ${pageHeader(true)}
   <div style="padding:6px 10px 2px;background:#F4F8FA;">
-    ${nomPage1}
     ${sectionPages[0].map(renderSec).join('')}
   </div>
 </div>`;
