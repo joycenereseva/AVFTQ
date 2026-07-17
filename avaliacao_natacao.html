@@ -1002,11 +1002,19 @@ async function _saveToFile() {
     // Read current file content
     const file = await _fileHandle.getFile();
     let content = await file.text();
-    // Replace the data tag content
-    content = content.replace(
-      /<script id="nt-saved-data" type="application\/json">[\s\S]*?<\/script>/,
-      `<script id="nt-saved-data" type="application/json">${JSON.stringify(data)}<\/script>`
-    );
+    // Replace the data tag content (avoid script-close sequence in source — breaks preview hosts)
+    const dataTagOpen = '<script id="nt-saved-data" type="application/json">';
+    const dataTagClose = '<' + '/script>';
+    const tagStart = content.indexOf(dataTagOpen);
+    if (tagStart !== -1) {
+      const bodyStart = tagStart + dataTagOpen.length;
+      const tagEnd = content.indexOf(dataTagClose, bodyStart);
+      if (tagEnd !== -1) {
+        content = content.slice(0, tagStart) +
+          dataTagOpen + JSON.stringify(data) + dataTagClose +
+          content.slice(tagEnd + dataTagClose.length);
+      }
+    }
     // Write back
     const writable = await _fileHandle.createWritable();
     await writable.write(content);

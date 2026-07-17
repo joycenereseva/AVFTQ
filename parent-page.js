@@ -257,7 +257,7 @@
       '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">\n' +
       '<meta name="theme-color" content="#115F76">\n' +
       '<title>AVF — ' + nome.replace(/</g, '') + '</title>\n<style>' + PARENT_PAGE_CSS + '</style>\n</head>\n<body>\n' +
-      '<div id="root"></div>\n<script type="application/json" id="avf-data">' + dataJson + '<\/script>\n' +
-      '<script>' + PARENT_PAGE_SCRIPT + '<\/script>\n</body>\n</html>';
+      '<div id="root"></div>\n<script type="application/json" id="avf-data">' + dataJson + '<' + '/script>\n' +
+      '<script>' + PARENT_PAGE_SCRIPT + '<' + '/script>\n</body>\n</html>';
   };
 })();
