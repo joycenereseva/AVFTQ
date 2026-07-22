@@ -2,6 +2,8 @@
 
 Aplicação HTML offline para fichas de avaliação técnica de natação particular.
 
+**Site publicado:** https://joycenereseva.github.io/AVFTQ/
+
 ## Arquivos
 
 | Arquivo | Uso |
